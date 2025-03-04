@@ -10,6 +10,8 @@ use App\Models\StatusBadanUsaha;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\BadanUsaha>
@@ -18,6 +20,9 @@ class BadanUsahaFactory extends Factory
 {
     const TABLE_MASTER_DAERAH = "umkm_m_daerah";
     const JENIS_TEMPAT_USAHA_LAINNYA = 5;
+    #Kewilayahan
+    const PROVINCE = 32; #Jawa Barat
+    const LINK_TO_GET_COORDINATION = "https://data.jabarprov.go.id/api-backend//bigdata/diskominfo/od_kode_wilayah_dan_nama_wilayah_desa_kelurahan";
 
     /**
      * Define the model's default state.
@@ -29,12 +34,12 @@ class BadanUsahaFactory extends Factory
         #Pengusaha
         $pengusaha = Pengusaha::factory()->create();
 
-        #Daerah JAWA_BARAT
+        #Daerah
+        $province = self::PROVINCE;
         $daerah = DB::table(self::TABLE_MASTER_DAERAH)
-            ->where('alamat_id_desa_kel', 'like', '32%')
+            ->where('alamat_id_desa_kel', 'like', "{$province}%")
             ->inRandomOrder()
             ->value('alamat_id_desa_kel');
-        $province = substr($daerah, 0, 2);
 
         #Tanggal Mendaftar
         $tanggalDaftar = $this->generateTanggalDaftar();
@@ -63,11 +68,11 @@ class BadanUsahaFactory extends Factory
         return [
             'id_status_badan_usaha' => StatusBadanUsaha::query()->inRandomOrder()->value('id_status_badan_usaha'),
             'nama_lengkap'
-                => $pengusaha->id_status_pengusaha == StatusPengusahaEnum::PEMILIKPENANGGUNGJAWAB->value
+            => $pengusaha->id_status_pengusaha == StatusPengusahaEnum::PEMILIKPENANGGUNGJAWAB->value
                 ? $pengusaha->nama_pengusaha
                 : $this->faker->firstName($genderLabel) . ' ' . $this->faker->lastName($genderLabel),
             'nama_komersil' => $this->faker->company,
-            'nib' => $this->generateNib($province, $tahunDaftar),
+            'nib' => $this->generateNib((int) substr($daerah, 0, 2), $tahunDaftar),
             'npwp_badan_usaha' => $this->generateNpwp(),
             'nik_pengusaha' => $pengusaha->nik_pengusaha,
             'bulan_mulai_operasi' => $tanggalDaftar->month,
@@ -76,15 +81,15 @@ class BadanUsahaFactory extends Factory
             'id_jenis_kegiatan' => null,
             'produk_utama' => array_rand($produk),
             'id_kbli' => null,
-            'alamat_id_prov' => intval(substr($daerah, 0, 2)),
-            'alamat_id_kabkot' => intval(substr($daerah, 0, 4)),
-            'alamat_id_kec' => intval(substr($daerah, 0, 6)),
-            'alamat_id_desa_kel' => intval($daerah),
+            'alamat_id_prov' => (int) intval(substr($daerah, 0, 2)),
+            'alamat_id_kabkot' => (int) intval(substr($daerah, 0, 4)),
+            'alamat_id_kec' => (int) intval(substr($daerah, 0, 6)),
+            'alamat_id_desa_kel' => (int) intval($daerah),
             'id_jenis_tempat_usaha' => $jenisTempatUsaha,
             'jenis_tempat_usaha_lain' => $jenisTempatUsaha === self::JENIS_TEMPAT_USAHA_LAINNYA ? $this->faker->sentence(3) : null,
             'alamat_lengkap' => $this->faker->streetAddress(),
-            'alamat_rt' => intval(str_pad(rand(1, 20), 3, '0', STR_PAD_LEFT)),
-            'alamat_rw' =>  intval(str_pad(rand(1, 10), 3, '0', STR_PAD_LEFT)),
+            'alamat_rt' => (int) intval(str_pad(rand(1, 20), 3, '0', STR_PAD_LEFT)),
+            'alamat_rw' =>  (int) intval(str_pad(rand(1, 10), 3, '0', STR_PAD_LEFT)),
             'alamat_kode_pos' => $this->faker->postcode(),
             'kontak_telepon' => $this->faker->numerify('021#######'),
             'kontak_telepon_ext' => $this->faker->optional(0.5)->numerify('###'),
@@ -92,24 +97,22 @@ class BadanUsahaFactory extends Factory
             'kontak_fax' => $this->faker->optional(0.3)->numerify('021#######'),
             'kontak_email' => $this->faker->unique()->safeEmail,
             'kontak_website' => $this->faker->optional(0.7)->url,
-            'alamat_latitude' => $this->faker->randomFloat(6, -7.9, -6.2), # JAWA_BARAT (-7.9 hingga -6.2)
-            'alamat_longitude' => $this->faker->randomFloat(6, 106.4, 108.9), # JAWA_BARAT (106.4 hingga 108.9)
             'catatan_pendataan' => $this->faker->word,
             'kontak_whatsapp' => $this->faker->boolean(80) ? $kontakHp : fake()->numerify('+628#########'),
             'modal_pendirian' => rand(5_000_000, 1_000_000_000),
             'pj_nama' => $pengusaha->id_status_pengusaha == StatusPengusahaEnum::PEMILIKPENANGGUNGJAWAB->value
-            ? $pengusaha->nama_pengusaha
-            : $this->faker->firstName($genderLabel) . ' ' . $this->faker->lastName($genderLabel),
+                ? $pengusaha->nama_pengusaha
+                : $this->faker->firstName($genderLabel) . ' ' . $this->faker->lastName($genderLabel),
             'pj_nik' => $pengusaha->id_status_pengusaha == StatusPengusahaEnum::PEMILIKPENANGGUNGJAWAB->value
-            ? $pengusaha->nik_pengusaha
-            : $this->generateNik(),
+                ? $pengusaha->nik_pengusaha
+                : $this->generateNik(),
             'pj_wa_hp' => $pengusaha->id_status_pengusaha == StatusPengusahaEnum::PEMILIKPENANGGUNGJAWAB->value
-            ? $pengusaha->kontak_whatsapp
-            : ($this->faker->boolean(80) ? $kontakHp : fake()->numerify('+628#########')),
+                ? $pengusaha->kontak_whatsapp
+                : ($this->faker->boolean(80) ? $kontakHp : fake()->numerify('+628#########')),
             'pj_jabatan' => 'Penanggung Jawab',
             'pj_email' => $pengusaha->id_status_pengusaha == StatusPengusahaEnum::PEMILIKPENANGGUNGJAWAB->value
-            ? $pengusaha->kontak_email
-            : $this->faker->unique()->safeEmail,
+                ? $pengusaha->kontak_email
+                : $this->faker->unique()->safeEmail,
             'tgl_pendataan_awal' => null,
             'tgl_pendataan_sampai' => null,
             'tgl_enum_awal' => null,
@@ -132,7 +135,68 @@ class BadanUsahaFactory extends Factory
             'source' => null,
             'platform' => null,
             'is_pl_flag' => false,
-            'related_id' => null
+            'related_id' => null,
+            ...$this->generateCoordinate($daerah)
+        ];
+    }
+
+    public function findByLocationCode(string $parameter): static
+    {
+        if (!ctype_digit($parameter)) {
+            throw new \InvalidArgumentException("Invalid Regency ID format.");
+        }
+
+        if (self::PROVINCE !== (int) substr($parameter, 0, 2)) {
+            throw new \InvalidArgumentException("Invalid Province code you have to use CODE: " . self::PROVINCE);
+        }
+
+        $daerah = DB::table(self::TABLE_MASTER_DAERAH)
+            ->where('alamat_id_desa_kel', 'like', "{$parameter}%")
+            ->inRandomOrder()
+            ->value('alamat_id_desa_kel');
+
+        if (!$daerah) {
+            throw new \Exception("No matching region found for ID: {$parameter}");
+        }
+
+        return $this->state(fn(array $attributes) => [
+            'alamat_id_prov' => (int) substr($daerah, 0, 2),
+            'alamat_id_kabkot' => (int) substr($daerah, 0, 4),
+            'alamat_id_kec' => (int) substr($daerah, 0, 6),
+            'alamat_id_desa_kel' => (int) $daerah,
+            ...$this->generateCoordinate($daerah)
+        ]);
+    }
+
+    private function generateCoordinate(string $daerah): array
+    {
+        try {
+            $daerahFormat = substr($daerah, 0, 2) . '.' . substr($daerah, 2, 2) . '.' . substr($daerah, 4, 2) . '.' . substr($daerah, 6);
+
+            $response = Http::acceptJson()->get(self::LINK_TO_GET_COORDINATION, [
+                'limit' => 10,
+                'skip' => 0,
+                'where_or' => json_encode(['kemendagri_kelurahan_kode' => $daerahFormat])
+            ]);
+
+            if ($response->successful()) {
+                $data = $response->json();
+
+                if (!empty($data['data']) && isset($data['data'][0]['latitude'], $data['data'][0]['longitude'])) {
+                    return [
+                        'alamat_latitude' => (float) $data['data'][0]['latitude'],
+                        'alamat_longitude' => (float) $data['data'][0]['longitude']
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch coordinates: ' . $e->getMessage());
+        }
+
+
+        return [
+            'alamat_latitude' => $this->faker->randomFloat(6, -7.9, -6.2), # JAWA_BARAT (-7.9 hingga -6.2)
+            'alamat_longitude' => $this->faker->randomFloat(6, 106.4, 108.9), # JAWA_BARAT (106.4 hingga 108.9)
         ];
     }
 
