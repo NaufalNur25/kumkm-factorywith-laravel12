@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\GenderEnum;
 use App\Enums\StatusPengusahaEnum;
+use App\Models\BadanUsaha;
 use App\Models\JenisTempatUsaha;
 use App\Models\Pengusaha;
 use App\Models\StatusBadanUsaha;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\Log;
  */
 class BadanUsahaFactory extends Factory
 {
-    const TABLE_MASTER_DAERAH = "umkm_m_daerah";
+    const TABLE_MASTER_DAERAH = "ref_kelurahan";
     const JENIS_TEMPAT_USAHA_LAINNYA = 5;
     #Kewilayahan
     const PROVINCE = 32; #Jawa Barat
@@ -37,9 +38,9 @@ class BadanUsahaFactory extends Factory
         #Daerah
         $province = self::PROVINCE;
         $daerah = DB::table(self::TABLE_MASTER_DAERAH)
-            ->where('alamat_id_desa_kel', 'like', "{$province}%")
+            ->where('id_kel', 'like', "{$province}%")
             ->inRandomOrder()
-            ->value('alamat_id_desa_kel');
+            ->value('id_kel');
 
         #Tanggal Mendaftar
         $tanggalDaftar = $this->generateTanggalDaftar();
@@ -64,6 +65,9 @@ class BadanUsahaFactory extends Factory
 
         #Kontak HP
         $kontakHp = $this->faker->numerify('+628#########');
+
+        #Banyak Data Daftar
+        $count = (BadanUsaha::where('bulan_mulai_operasi', $tanggalDaftar->format('m'))->count()) + 1;
 
         return [
             'id_status_badan_usaha' => StatusBadanUsaha::query()->inRandomOrder()->value('id_status_badan_usaha'),
@@ -90,7 +94,6 @@ class BadanUsahaFactory extends Factory
             'alamat_lengkap' => $this->faker->streetAddress(),
             'alamat_rt' => (int) intval(str_pad(rand(1, 20), 3, '0', STR_PAD_LEFT)),
             'alamat_rw' =>  (int) intval(str_pad(rand(1, 10), 3, '0', STR_PAD_LEFT)),
-            'alamat_kode_pos' => $this->faker->postcode(),
             'kontak_telepon' => $this->faker->numerify('021#######'),
             'kontak_telepon_ext' => $this->faker->optional(0.5)->numerify('###'),
             'kontak_hp' => $kontakHp,
@@ -121,7 +124,7 @@ class BadanUsahaFactory extends Factory
             'file_nib' => null,
             'file_npwp_usaha' => null,
             'file_akta_pendirian' => null,
-            'id_si_kumkm' => $this->faker->uuid,
+            'id_si_kumkm' => sprintf("KUMKM-%s-%03d", $tanggalDaftar->format('Ymd'), $count),
             'is_alamat_sama' => false,
             'teks_status_badan_usaha' => $this->faker->word,
             'file_bukti_wawancara' => null,
@@ -151,9 +154,9 @@ class BadanUsahaFactory extends Factory
         }
 
         $daerah = DB::table(self::TABLE_MASTER_DAERAH)
-            ->where('alamat_id_desa_kel', 'like', "{$parameter}%")
+            ->where('id_kel', 'like', "{$parameter}%")
             ->inRandomOrder()
-            ->value('alamat_id_desa_kel');
+            ->value('id_kel');
 
         if (!$daerah) {
             throw new \Exception("No matching region found for ID: {$parameter}");
@@ -184,6 +187,7 @@ class BadanUsahaFactory extends Factory
 
                 if (!empty($data['data']) && isset($data['data'][0]['latitude'], $data['data'][0]['longitude'])) {
                     return [
+                        'alamat_kode_pos' => (int) $data['data'][0]['kode_pos'],
                         'alamat_latitude' => (float) $data['data'][0]['latitude'],
                         'alamat_longitude' => (float) $data['data'][0]['longitude']
                     ];
@@ -221,7 +225,7 @@ class BadanUsahaFactory extends Factory
         $part5 = str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
         $part6 = str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
 
-        return "{$part1}.{$part2}.{$part3}.{$part4}-{$part5}.{$part6}";
+        return "{$part1}{$part2}{$part3}{$part4}-{$part5}{$part6}";
     }
 
     private function generateNik(): string

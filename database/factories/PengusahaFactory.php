@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
  */
 class PengusahaFactory extends Factory
 {
-    const TABLE_MASTER_DAERAH = "umkm_m_daerah";
+    const TABLE_MASTER_DAERAH = "ref_kelurahan";
 
     /**
      * Define the model's default state.
@@ -34,9 +34,9 @@ class PengusahaFactory extends Factory
 
         #Daerah
         $daerah = DB::table(self::TABLE_MASTER_DAERAH)
-            ->select('alamat_id_desa_kel')
+            ->select('id_kel')
             ->inRandomOrder()
-            ->value('alamat_id_desa_kel');
+            ->value('id_kel');
 
         #Kontak HP
         $kontakHp = $this->faker->numerify('+628#########');
@@ -71,7 +71,7 @@ class PengusahaFactory extends Factory
             'alamat_jalan_no' => $this->faker->streetAddress(),
             'alamat_kode_pos' => $this->faker->postcode(),
             'kontak_email' => $this->faker->unique()->safeEmail,
-            'kontak_instagram' => 'https://instagram.com/' . $this->faker->userName,
+            'kontak_instagram' => '@' . substr($this->faker->userName, 0, 28),
             'kontak_facebook' => 'https://facebook.com/' . $this->faker->userName,
             'kontak_website' => $this->faker->optional(0.7)->url,
             'id_status_pengusaha' => $statusPengusahaValue, #1: Pemilik; 2: Pemilik dan Penanggungjawab
@@ -111,11 +111,11 @@ class PengusahaFactory extends Factory
         $kpp = str_pad(mt_rand(1, 999), 3, '0', STR_PAD_LEFT);
         $branch = '000';
 
-        return substr($uniqueNumber, 0, 2) . '.' .
-            substr($uniqueNumber, 2, 3) . '.' .
-            substr($uniqueNumber, 5, 3) . '.' .
+        return substr($uniqueNumber, 0, 2) .
+            substr($uniqueNumber, 2, 3) .
+            substr($uniqueNumber, 5, 3) .
             $status . '-' .
-            $kpp . '.' .
+            $kpp .
             $branch;
     }
 }
